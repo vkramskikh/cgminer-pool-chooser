@@ -1,0 +1,2 @@
+cgminer-pool-chooser
+====================
