@@ -8,6 +8,7 @@ import socket
 import argparse
 from pycgminer import CgminerAPI
 from coinwarz import CoinwarzAPI
+from cryptsy import CryptsyAPI
 
 import logging
 logging.basicConfig(
@@ -22,6 +23,7 @@ class CPC(object):
         self.config = config
         self.cgminer = CgminerAPI(config['cgminer']['host'], config['cgminer']['port'])
         self.coinwarz = CoinwarzAPI(config['coinwarz'])
+        self.cryptsy = CryptsyAPI(config['coinwarz'])
 
     def restart_cgminer(self):
         logger.info('Restarting CGMiner...')
@@ -51,7 +53,7 @@ class CPC(object):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='CGMiner Pool Switcher')
+    parser = argparse.ArgumentParser(description='CGMiner Pool Chooser')
     parser.add_argument(
         '--config', dest='config', type=argparse.FileType('r'), default='cpc.yaml'
     )
@@ -62,7 +64,4 @@ if __name__ == '__main__':
     cgminer_version = cpc.cgminer.version()['VERSION'][0]
     logger.info('Connected to CGMiner v{CGMiner} API v{API}'.format(**cgminer_version))
 
-    #print json.dumps(cpc.pools(), indent=2)
-    print cpc.coinwarz.get_data()
-
-
+    print json.dumps(cpc.cryptsy.get_data(), indent=2)

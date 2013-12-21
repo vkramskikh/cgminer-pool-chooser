@@ -10,8 +10,8 @@ class CoinwarzAPI(object):
         self.config = config
 
     def fetch_data(self):
-        url = 'http://www.coinwarz.com/v1/api/apikeyinfo'
-        params = {'apikey': self.config['apikey']}
+        url = 'http://www.coinwarz.com/v1/api/profitability/'
+        params = {'apikey': self.config['apikey'], 'algo': 'scrypt'}
         data = urllib.urlopen(url + '?' + urllib.urlencode(params)).read()
         return data
 
@@ -19,8 +19,8 @@ class CoinwarzAPI(object):
         with open(self.config['cache_file'], 'r') as f:
             return json.load(f)
 
-    def get_data(self):
-        if os.path.exists(self.config['cache_file']) and \
+    def get_data(self, fetch=False):
+        if not fetch and os.path.exists(self.config['cache_file']) and \
                 (os.path.getmtime(self.config['cache_file']) + self.config['cache_expiry'] > time.time()):
             logger.info('Loading cached Coinwarz data')
             return self.load_cached_data()
@@ -29,7 +29,7 @@ class CoinwarzAPI(object):
             data = json.loads(self.fetch_data())
             if not data.get('Success'):
                 raise ValueError('Query unsuccessful')
-            logger.info('Data loaded successfully')
+            logger.info('Coinwarz data loaded successfully')
             with open(self.config['cache_file'], 'w') as f:
                 json.dump(data, f, indent=2)
             return data
