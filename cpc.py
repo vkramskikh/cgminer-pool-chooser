@@ -72,6 +72,7 @@ if __name__ == '__main__':
         if currency_price_data['secondarycode'] != 'BTC':
             continue
         currency_data = merged_data[currency_price_data['primarycode']] = {}
+        currency_data['name'] = currency_price_data['primaryname']
         currency_data['price'] = float(currency_price_data['lasttradeprice'])
         currency_data['exchange_volume'] = float(currency_price_data['volume'])
 
@@ -89,9 +90,8 @@ if __name__ == '__main__':
 
     merged_data = {k: v for k, v in merged_data.iteritems() if 'coins_per_day' in v}
 
-    if btc_price:
-        for currency, currency_data in merged_data.items():
-            currency_data['btc_per_day'] = currency_data['coins_per_day'] * currency_data['price']
-            currency_data['usd_per_day'] = currency_data['btc_per_day'] * btc_price
+    for currency, currency_data in merged_data.items():
+        currency_data['usd_per_day'] = currency_data['coins_per_day'] * currency_data['price'] * btc_price
 
-    print json.dumps(merged_data, indent=2)
+    for currency, currency_data in sorted(merged_data.items(), key=lambda key: key[1]['usd_per_day']):
+        print json.dumps(currency_data, indent=2)
