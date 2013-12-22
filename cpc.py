@@ -8,10 +8,11 @@ import socket
 import argparse
 from pycgminer import CgminerAPI
 from data_providers import CoinwarzAPI, CryptsyAPI
+from rating_calculator import RatingCalculator
 
 import logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
 )
 logger = logging.getLogger('cpc')
@@ -84,14 +85,16 @@ if __name__ == '__main__':
         if currency not in merged_data:
             continue
         currency_data = merged_data[currency]
+        currency_data['profit_growth'] = currency_difficulty_data['ProfitRatio'] / currency_difficulty_data['AvgProfitRatio']
         currency_data['difficulty'] = currency_difficulty_data['Difficulty']
         currency_data['block_reward'] = currency_difficulty_data['BlockReward']
         currency_data['coins_per_day'] = 86400 * cpc.config['hashes_per_sec'] * currency_data['block_reward'] / (currency_data['difficulty'] * 2 ** 32)
 
     merged_data = {k: v for k, v in merged_data.iteritems() if 'coins_per_day' in v}
 
-    for currency, currency_data in merged_data.items():
+    for currency_data in merged_data.values():
         currency_data['usd_per_day'] = currency_data['coins_per_day'] * currency_data['price'] * btc_price
+        currency_data['rating'] = RatingCalculator.rate_currency(currency_data)
 
-    for currency, currency_data in sorted(merged_data.items(), key=lambda key: key[1]['usd_per_day']):
-        print json.dumps(currency_data, indent=2)
+    result = sorted(merged_data.values(), key=lambda currency: currency['rating'])
+    print json.dumps(result, indent=2)
