@@ -1,0 +1,19 @@
+---
+cgminer:
+  host: 127.0.0.1
+  port: 4028
+
+pool_currency:
+  "stratum+tcp://global.wemineltc.com:3335": LTC
+  "stratum+tcp://stratum.wemineftc.com:4444": FTC
+
+coinwarz:
+  apikey: ''
+  cache_file: 'coinwarz_cache.json'
+  cache_expiry: 3600
+
+cryptsy:
+  cache_file: 'cryptsy_cache.json'
+  cache_expiry: 3600
+
+hashes_per_sec: 620000
