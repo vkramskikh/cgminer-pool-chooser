@@ -30,7 +30,6 @@ class RatingCalculator(object):
 
     @classmethod
     def rate_currency(cls, currency):
-        from math import exp
         rating = currency['usd_per_day']
         logger.debug('%s original rating is %f', currency['name'], rating)
         for method in ('analyze_exchange_volume', 'analyze_profit_growth', 'analyze_difficulty'):

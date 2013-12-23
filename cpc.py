@@ -41,14 +41,16 @@ class CPC(object):
         logger.info('CGMiner restarted')
 
     def cgminer_pools(self):
-        pools = self.cgminer.pools()['POOLS']
-        pools = filter(lambda pool: pool['Status'] == 'Alive', pools)
-        for pool in pools:
+        pools = []
+        for pool in self.cgminer.pools()['POOLS']:
             currency = self.config['pool_currency'].get(pool['URL'])
+            if pool['Status'] != 'Alive':
+                logger.warning('Pool %s status is %s', pool['URL'], pool['Status'])
             if not currency:
                 logger.error('Unknown currency for pool %s', pool['URL'])
                 continue
             pool['Currency'] = currency
+            pools.append(pool)
         return pools
 
     def get_currencies(self):
@@ -101,18 +103,30 @@ if __name__ == '__main__':
     cpc = CPC(yaml.load(args.config))
 
     currencies = cpc.get_currencies()
-    rated_currencies = list(reversed(sorted(currencies.values(), key=lambda currency: currency['rating'])))
+    prioritized_currencies = list(reversed(sorted(currencies.values(), key=lambda c: c['rating'])))
     if args.data_only:
-        print json.dumps(rated_currencies, indent=2)
+        print json.dumps(prioritized_currencies, indent=2)
         exit(0)
 
     cgminer_version = cpc.cgminer.version()['VERSION'][0]
     logger.info('Connected to CGMiner v{CGMiner} API v{API}'.format(**cgminer_version))
     pools = cpc.cgminer_pools()
     active_pools = filter(lambda p: p['Stratum Active'], pools)
-    active_currency = None
     if len(active_pools):
         active_currency = currencies[active_pools[0]['Currency']]
-        logger.info('Currently mining %s ($%.2f/day) on %s', active_currency['name'], active_currency['usd_per_day'], active_pools[0]['URL'])
+        logger.info('Currently mining %s ($%.2f/d) on %s', active_currency['name'], active_currency['usd_per_day'], active_pools[0]['URL'])
     else:
         logger.error('No active pools found')
+
+    prioritized_currencies = [c for c in prioritized_currencies if c['id'] in (p['Currency'] for p in pools)]
+    logger.info('Currency priority: %s', ', '.join('%s(%.2f,$%.2f/d)' % (c['name'], c['rating'], c['usd_per_day']) for c in prioritized_currencies))
+
+    prioritized_pools = []
+    for currency in prioritized_currencies:
+        prioritized_pools += [p for p in pools if p['Currency'] == currency['id']]
+    pool_priority = ','.join(str(p['POOL']) for p in prioritized_pools)
+    logger.info('Pool priority: %s', pool_priority)
+
+    response = cpc.cgminer.poolpriority(pool_priority)
+    priority_changed = response['STATUS'][0]['STATUS'] == 'S'
+    getattr(logger, priority_changed and 'info' or 'error')(response['STATUS'][0]['Msg'])
