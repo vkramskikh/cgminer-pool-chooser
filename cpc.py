@@ -98,6 +98,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--data-only', dest='data_only', action='store_true'
     )
+    parser.add_argument(
+        '--no-priority-change', dest='no_priority_change', action='store_true'
+    )
     args = parser.parse_args()
 
     cpc = CPC(yaml.load(args.config))
@@ -127,6 +130,7 @@ if __name__ == '__main__':
     pool_priority = ','.join(str(p['POOL']) for p in prioritized_pools)
     logger.info('Pool priority: %s', pool_priority)
 
-    response = cpc.cgminer.poolpriority(pool_priority)
-    priority_changed = response['STATUS'][0]['STATUS'] == 'S'
-    getattr(logger, priority_changed and 'info' or 'error')(response['STATUS'][0]['Msg'])
+    if not args.no_priority_change:
+        response = cpc.cgminer.poolpriority(pool_priority)
+        priority_changed = response['STATUS'][0]['STATUS'] == 'S'
+        getattr(logger, priority_changed and 'info' or 'error')(response['STATUS'][0]['Msg'])
