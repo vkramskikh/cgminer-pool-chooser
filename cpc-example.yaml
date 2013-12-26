@@ -16,4 +16,7 @@ cryptsy:
   cache_file: 'cryptsy_cache.json'
   cache_expiry: 3600
 
-hashes_per_sec: 620000
+hashrate: 620000
+
+pool_choose_interval: 7200
+retry_interval: 60

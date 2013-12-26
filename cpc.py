@@ -6,13 +6,14 @@ import json
 import yaml
 import socket
 import argparse
+import traceback
 from pycgminer import CgminerAPI
 from data_providers import CoinwarzAPI, CryptsyAPI
 from rating_calculator import RatingCalculator
 
 import logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
 )
 logger = logging.getLogger('cpc')
@@ -24,6 +25,7 @@ class CPC(object):
         self.cgminer = CgminerAPI(config['cgminer']['host'], config['cgminer']['port'])
         self.coinwarz = CoinwarzAPI(config['coinwarz'])
         self.cryptsy = CryptsyAPI(config['cryptsy'])
+        self.hashrate = self.config['hashrate']
 
     def restart_cgminer(self):
         logger.info('Restarting CGMiner...')
@@ -79,7 +81,7 @@ class CPC(object):
             currency_data['profit_growth'] = currency_difficulty_data['ProfitRatio'] / currency_difficulty_data['AvgProfitRatio']
             currency_data['difficulty'] = currency_difficulty_data['Difficulty']
             currency_data['block_reward'] = currency_difficulty_data['BlockReward']
-            currency_data['coins_per_day'] = 86400 * self.config['hashes_per_sec'] * currency_data['block_reward'] / (currency_data['difficulty'] * 2 ** 32)
+            currency_data['coins_per_day'] = 86400 * self.hashrate * currency_data['block_reward'] / (currency_data['difficulty'] * 2 ** 32)
 
         currencies = {k: v for k, v in currencies.iteritems() if 'coins_per_day' in v}
 
@@ -101,36 +103,62 @@ if __name__ == '__main__':
     parser.add_argument(
         '--no-priority-change', dest='no_priority_change', action='store_true'
     )
+    parser.add_argument(
+        '--no-loop', dest='no_loop', action='store_true'
+    )
     args = parser.parse_args()
 
     cpc = CPC(yaml.load(args.config))
 
-    currencies = cpc.get_currencies()
-    prioritized_currencies = list(reversed(sorted(currencies.values(), key=lambda c: c['rating'])))
-    if args.data_only:
-        print json.dumps(prioritized_currencies, indent=2)
-        exit(0)
+    while True:
+        try:
+            try:
+                cgminer_version = cpc.cgminer.version()['VERSION'][0]
+                logger.info('Connected to CGMiner v{CGMiner} API v{API}'.format(**cgminer_version))
+                cgminer_summary = cpc.cgminer.summary()['SUMMARY'][0]
+                cpc.hashrate = cgminer_summary['MHS 5s'] * 1000000
+            except Exception:
+                logger.error('Unable to get CGMiner info: %s', traceback.format_exc())
+                logger.info('Using hashrate from config: %d Kh/s', cpc.hashrate)
+            else:
+                logger.info('Current hashrate is %d Kh/s', cpc.hashrate / 1000)
 
-    cgminer_version = cpc.cgminer.version()['VERSION'][0]
-    logger.info('Connected to CGMiner v{CGMiner} API v{API}'.format(**cgminer_version))
-    pools = cpc.cgminer_pools()
-    active_pools = filter(lambda p: p['Stratum Active'], pools)
-    if len(active_pools):
-        active_currency = currencies[active_pools[0]['Currency']]
-        logger.info('Currently mining %s ($%.2f/d) on %s', active_currency['name'], active_currency['usd_per_day'], active_pools[0]['URL'])
-    else:
-        logger.error('No active pools found')
+            currencies = cpc.get_currencies()
+            prioritized_currencies = list(reversed(sorted(currencies.values(), key=lambda c: c['rating'])))
+            if args.data_only:
+                print json.dumps(prioritized_currencies, indent=2)
+                exit(0)
 
-    prioritized_currencies = [c for c in prioritized_currencies if c['id'] in (p['Currency'] for p in pools)]
-    logger.info('Currency priority: %s', ', '.join('%s(%.2f,$%.2f/d)' % (c['name'], c['rating'], c['usd_per_day']) for c in prioritized_currencies))
+            pools = cpc.cgminer_pools()
+            active_pools = filter(lambda p: p['Stratum Active'], pools)
+            if len(active_pools):
+                active_currency = currencies[active_pools[0]['Currency']]
+                logger.info('Mining %s ($%.2f/d) on %s', active_currency['name'], active_currency['usd_per_day'], active_pools[0]['URL'])
+            else:
+                logger.error('No active pools found')
 
-    prioritized_pools = []
-    for currency in prioritized_currencies:
-        prioritized_pools += [p for p in pools if p['Currency'] == currency['id']]
-    pool_priority = ','.join(str(p['POOL']) for p in prioritized_pools)
-    logger.info('Pool priority: %s', pool_priority)
+            prioritized_currencies = [c for c in prioritized_currencies if c['id'] in (p['Currency'] for p in pools)]
+            logger.info('Currency priority: %s', ', '.join('%s(%.2f,$%.2f/d)' % (c['name'], c['rating'], c['usd_per_day']) for c in prioritized_currencies))
 
-    if not args.no_priority_change:
-        response = cpc.cgminer.poolpriority(pool_priority)
-        priority_changed = response['STATUS'][0]['STATUS'] == 'S'
-        getattr(logger, priority_changed and 'info' or 'error')(response['STATUS'][0]['Msg'])
+            prioritized_pools = []
+            for currency in prioritized_currencies:
+                prioritized_pools += [p for p in pools if p['Currency'] == currency['id']]
+            pool_priority = ','.join(str(p['POOL']) for p in prioritized_pools)
+            logger.info('Pool priority: %s', pool_priority)
+
+            if not args.no_priority_change:
+                response = cpc.cgminer.poolpriority(pool_priority)
+                priority_changed = response['STATUS'][0]['STATUS'] == 'S'
+                getattr(logger, priority_changed and 'info' or 'error')(response['STATUS'][0]['Msg'])
+                if not priority_changed:
+                    raise ValueError('Unable to change pool priority')
+
+            if args.no_loop:
+                break
+        except Exception:
+            logger.error('Error occured during main loop: %s', traceback.format_exc())
+            logger.info('Retrying after %ds', cpc.config['retry_interval'])
+            time.sleep(cpc.config['retry_interval'])
+        else:
+            logger.info('Retrying after %ds', cpc.config['pool_choose_interval'])
+            time.sleep(cpc.config['pool_choose_interval'])
