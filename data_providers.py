@@ -16,7 +16,7 @@ class DataProviderAPI(object):
     def get_data(self, fetch=False):
         if not fetch and os.path.exists(self.config['cache_file']) and \
                 (os.path.getmtime(self.config['cache_file']) + self.config['cache_expiry'] > time.time()):
-            logger.info('Loading cached %s data', self.name)
+            logger.debug('Loading cached %s data', self.name)
             return self.load_cached_data()
         else:
             logger.info('Fetching %s data...', self.name)
