@@ -149,7 +149,8 @@ if __name__ == '__main__':
             logger.info('Pool priority: %s', pool_priority)
 
             if not args.no_priority_change:
-                cpc.restart_cgminer()
+                if cpc.config['cgminer']['restart_on_pool_change']:
+                    cpc.restart_cgminer()
                 response = cpc.cgminer.poolpriority(pool_priority)
                 priority_changed = response['STATUS'][0]['STATUS'] == 'S'
                 getattr(logger, priority_changed and 'info' or 'error')(response['STATUS'][0]['Msg'])

@@ -2,6 +2,7 @@
 cgminer:
   host: 127.0.0.1
   port: 4028
+  restart_on_pool_change: true
 
 pool_currency:
   "stratum+tcp://global.wemineltc.com:3335": LTC
