@@ -25,7 +25,7 @@ class RatingCalculator(object):
     def analyze_difficulty(currency):
         # coins with high difficulty don't let me switch PPLNS pools frequently, slightly reduce rating
         difficulty = currency['difficulty']
-        difficulty_change = -exp(-200.0 / difficulty) / 5
+        difficulty_change = -exp(-200.0 / difficulty) / 10
         return difficulty_change
 
     @classmethod
