@@ -21,18 +21,11 @@ class RatingCalculator(object):
             profit_growth_change = -exp(-1.5 / (profit_growth - 1))
         return profit_growth_change
 
-    @staticmethod
-    def analyze_difficulty(currency):
-        # coins with high difficulty don't let me switch PPLNS pools frequently, slightly reduce rating
-        difficulty = currency['difficulty']
-        difficulty_change = -exp(-200.0 / difficulty) / 10
-        return difficulty_change
-
     @classmethod
     def rate_currency(cls, currency):
         rating = currency['usd_per_day']
         logger.debug('%s original rating is %f', currency['name'], rating)
-        for method in ('analyze_exchange_volume', 'analyze_profit_growth', 'analyze_difficulty'):
+        for method in ('analyze_exchange_volume', 'analyze_profit_growth'):
             rating_change = getattr(cls, method)(currency)
             rating *= (rating_change + 1)
             logger.debug('%s rating changed by %s by %.2f%% to %f', currency['name'], method, rating_change * 100, rating)
