@@ -1,23 +1,33 @@
 ---
 cgminer:
+  # cgminer API host and port
   host: 127.0.0.1
   port: 4028
-  restart_on_pool_change: true
+  # restart cgminer after switching pools
+  # set to true if cgminer sometimes freezes after switching pools
+  restart_on_pool_change: false
 
+# pools from cgminer config with their currencies
 pool_currency:
   "stratum+tcp://global.wemineltc.com:3335": LTC
   "stratum+tcp://stratum.wemineftc.com:4444": FTC
 
 coinwarz:
+  # coinwarz API key, get at http://www.coinwarz.com/api
   apikey: ''
   cache_file: 'coinwarz_cache.json'
+  # cache expiry time in seconds
+  # 1 hour is ok for free access level
   cache_expiry: 3600
 
 cryptsy:
   cache_file: 'cryptsy_cache.json'
   cache_expiry: 3600
 
+# this value is used when it is impossible to get current hashrate from cgminer
 hashrate: 620000
 
+# time between attempts to switch pools in seconds
 pool_choose_interval: 7200
+# time between attempts to switch pools in seconds after exception in main loop
 retry_interval: 60
