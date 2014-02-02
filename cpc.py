@@ -116,12 +116,10 @@ if __name__ == '__main__':
                 cgminer_version = cpc.cgminer.version()['VERSION'][0]
                 logger.debug('Connected to CGMiner v{CGMiner} API v{API}'.format(**cgminer_version))
                 cgminer_summary = cpc.cgminer.summary()['SUMMARY'][0]
-                cpc.hashrate = cgminer_summary['MHS 5s'] * 1000000
+                cpc.hashrate = cgminer_summary['MHS av'] * 1000000
             except Exception:
                 logger.error('Unable to get CGMiner info: %s', traceback.format_exc())
                 logger.info('Using hashrate from config: %d Kh/s', cpc.hashrate)
-            else:
-                logger.debug('Current hashrate is %d Kh/s', cpc.hashrate / 1000)
 
             currencies = cpc.get_currencies()
             prioritized_currencies = list(reversed(sorted(currencies.values(), key=lambda c: c['rating'])))
@@ -134,8 +132,12 @@ if __name__ == '__main__':
             if len(active_pools):
                 active_currency = currencies[active_pools[0]['Currency']]
                 active_currency_info = cpc.cgminer.coin()['COIN'][0]
-                logger.info('Mining %s ($%.2f/d) on %s', active_currency['name'], active_currency['usd_per_day'], active_pools[0]['URL'])
-                logger.info('%s network difficulty is %f', active_currency['name'], active_currency_info['Network Difficulty'])
+                logger.info('Currently mining %s ($%.2f/d, diff %f, %d Kh/s) on %s',
+                            active_currency['name'],
+                            active_currency['usd_per_day'],
+                            active_currency_info['Network Difficulty'],
+                            cpc.hashrate / 1000,
+                            active_pools[0]['URL'])
             else:
                 logger.error('No active pools found')
 
