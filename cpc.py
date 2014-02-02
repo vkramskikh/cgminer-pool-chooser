@@ -129,6 +129,7 @@ if __name__ == '__main__':
 
             pools = cpc.cgminer_pools()
             active_pools = filter(lambda p: p['Stratum Active'], pools)
+            active_currency = None
             if len(active_pools):
                 active_currency = currencies[active_pools[0]['Currency']]
                 active_currency_info = cpc.cgminer.coin()['COIN'][0]
@@ -148,9 +149,19 @@ if __name__ == '__main__':
             for currency in prioritized_currencies:
                 prioritized_pools += [p for p in pools if p['Currency'] == currency['id']]
             pool_priority = ','.join(str(p['POOL']) for p in prioritized_pools)
-            logger.info('Pool priority: %s', pool_priority)
+            logger.debug('Pool priority: %s', pool_priority)
 
-            if not args.no_priority_change:
+            change_priority = True
+            proposed_currency = prioritized_currencies[0]
+            if active_currency:
+                rating_ratio = proposed_currency['rating'] / active_currency['rating']
+                currency_switch_threshold = cpc.config['currency_switch_threshold']
+                if rating_ratio < currency_switch_threshold:
+                    change_priority = False
+                    logger.info('Rating ratio %f < %f, leaving pool priority as it is', rating_ratio, currency_switch_threshold)
+                else:
+                    logger.info('Rating ratio %f >= %f, applying new pool priority', rating_ratio, currency_switch_threshold)
+            if not args.no_priority_change and change_priority:
                 if cpc.config['cgminer']['restart_on_pool_change']:
                     cpc.restart_cgminer()
                 response = cpc.cgminer.poolpriority(pool_priority)

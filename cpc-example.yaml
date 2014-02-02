@@ -24,6 +24,11 @@ cryptsy:
   cache_file: 'cryptsy_cache.json'
   cache_expiry: 3600
 
+# pools are switched only if proposed currency rating / active currency rating >= currency_switch_threshold
+# set this value higher (to 1.3 or 1.4) if you are mining in PPLNS pools and do not want
+# to switch to another currency that is slightly more profitable
+currency_switch_threshold: 1
+
 # this value is used when it is impossible to get current hashrate from cgminer
 hashrate: 620000
 
